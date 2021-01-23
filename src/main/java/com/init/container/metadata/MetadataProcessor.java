@@ -23,6 +23,7 @@ public class MetadataProcessor {
 
     private Map<Class<?>, Object> buildInstanceCache(List<AnnotatedClass> annotatedClass) {
         // scan first for configuration files and build instances for those injectable methods
+            // treat each injectable method as a constructor - any parameter to the method needs to be created first
         // then build instances for injectable classes
         return null;
     }
