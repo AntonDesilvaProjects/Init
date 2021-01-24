@@ -1,5 +1,7 @@
 package com.init.container.metadata;
 
+import com.application.service.impl.APIStockDataService;
+import com.application.service.impl.StockDataParserEngine;
 import com.init.annotation.Init;
 import com.init.annotation.Injectable;
 import com.init.annotation.InjectableApplication;
@@ -66,7 +68,7 @@ public class AnnotationUtils {
     }
 
 
-    public static void main(String... args) {
+    public static void main2(String... args) {
 //        Reflections reflections = new Reflections(
 //                new ConfigurationBuilder().setUrls(
 //                        ClasspathHelper.forPackage( "com.application" ) ).setScanners(
@@ -94,5 +96,11 @@ public class AnnotationUtils {
 
         Optional<AnnotatedClass> metadata = getAnnotationsForClass(clazz, Set.of(Init.class, Injectable.class, InjectableApplication.class, Property.class));
         System.out.println(metadata);
+    }
+
+    public static void main(String... args) {
+        List<AnnotatedClass> l = AnnotationUtils.scanForAnnotations("com.application", Set.of(Init.class, Injectable.class, InjectableApplication.class, Property.class));
+        Map<String, String> m = new HashMap<>();
+        m.put(null, null);
     }
 }

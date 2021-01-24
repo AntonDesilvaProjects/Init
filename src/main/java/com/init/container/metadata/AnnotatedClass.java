@@ -3,6 +3,7 @@ package com.init.container.metadata;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /*
@@ -52,5 +53,18 @@ public class AnnotatedClass {
     public AnnotatedClass setAnnotationToAnnotatedElements(Map<Annotation, Set<AnnotatedElement>> annotationToAnnotatedElements) {
         this.annotationToAnnotatedElements = annotationToAnnotatedElements;
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AnnotatedClass that = (AnnotatedClass) o;
+        return Objects.equals(sourceClass, that.sourceClass) && Objects.equals(annotationToAnnotatedElements, that.annotationToAnnotatedElements);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(sourceClass, annotationToAnnotatedElements);
     }
 }
