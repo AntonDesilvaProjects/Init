@@ -4,9 +4,10 @@ import com.init.annotation.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -23,6 +24,7 @@ public class MetadataProcessor {
         final List<AnnotatedClass> annotatedClasses = AnnotationUtils.scanForAnnotations(basePackagePath, FRAMEWORK_ANNOTATIONS);
         validateAnnotations(annotatedClasses);
         final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap = annotatedClasses.stream().collect(Collectors.toMap(AnnotatedClass::getSourceClass, Function.identity()));
+        buildClassDependencyGraph(classToAnnotatedMetaDataMap);
     }
 
     private void validateAnnotations(List<AnnotatedClass> annotatedClass) {
@@ -66,25 +68,44 @@ public class MetadataProcessor {
      *  For injectable instances provided by methods, the combination of the method parameters
      *  and the enclosing classes dependencies as the dependencies for the returned instance.
      *
+     * Collectors.groupingBy(annotatedClass -> annotatedClass.getAnnotationToAnnotatedElements()
+                                    .keySet()
+                                    .stream()
+                                    .map(Annotation::getClass)
+                                    .filter(CLASS_DEFINITION_ANNOTATIONS::contains)
+                                    .findFirst()
+                                    .orElse((Class) Annotation.class) // return default Annotation class; this will be ignored
+     *
      * */
     private Map<AnnotatedClass, Set<AnnotatedClass>> buildClassDependencyGraph(final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap) {
         // gather all root level annotated class definition
-        Map<Class<?>, List<AnnotatedClass>> classDefinitions = classToAnnotatedMetaDataMap.values().stream()
-                .collect(Collectors.groupingBy(annotatedClass -> annotatedClass.getAnnotationToAnnotatedElements()
-                            .keySet()
-                            .stream()
-                            .map(Annotation::getClass)
-                            .filter(CLASS_DEFINITION_ANNOTATIONS::contains)
-                            .findFirst()
-                            .orElse(null)
-                ));
+        Map<Class<?>, List<AnnotatedClass>> rootLevelClassDefinitions = classToAnnotatedMetaDataMap.values().stream()
+                .collect(Collectors.groupingBy(annotatedClass -> {
+                            // for each annotated class, find the class level annotations
+                            Class<?> rootLevelClassAnnotation = Annotation.class;
+                            for (Class<?> classDefinitionAnnotation: CLASS_DEFINITION_ANNOTATIONS) {
+                                if (annotatedClass.getAnnotationClassToAnnotatedElements().containsKey(classDefinitionAnnotation)) {
+                                    Set<AnnotatedElement> annotatedElements = annotatedClass.getAnnotationClassToAnnotatedElements().get(classDefinitionAnnotation);
+                                    if (annotatedElements.stream().anyMatch(annotatedElement -> annotatedElement instanceof Type)) {
+                                        return classDefinitionAnnotation;
+                                    }
+                                }
+                            }
 
-//        // search for configuration class injectable methods
-//        classDefinitions.stream()
-//                .filter(annotatedClassDef -> annotatedClassDef.getAnnotationToAnnotatedElements().containsKey(Configuration.class))
-//                .map(config -> {
-//                        return null;
-//                }).collect(Collectors.toSet());toSet
+
+                            return rootLevelClassAnnotation;
+                        })
+                );
+
+        // for any beans defined as methods, generate 'synthetic' annotated class definition
+        Optional.ofNullable(rootLevelClassDefinitions.get(Configuration.class)).orElse(List.of()).stream()
+                .filter(configurationClass -> {
+                    //
+                    return true;
+                })
+                .map(configurationClass -> {
+            return new AnnotatedClass(null, null);
+        }).collect(Collectors.toSet());
 
         return null;
     }

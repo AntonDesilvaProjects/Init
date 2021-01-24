@@ -1,7 +1,5 @@
 package com.init.container.metadata;
 
-import com.application.service.impl.APIStockDataService;
-import com.application.service.impl.StockDataParserEngine;
 import com.init.annotation.Init;
 import com.init.annotation.Injectable;
 import com.init.annotation.InjectableApplication;
@@ -50,21 +48,21 @@ public class AnnotationUtils {
     }
 
     public static Optional<AnnotatedClass> getAnnotationsForClass(Class<?> clazz, Set<Class<?>> annotations) {
-        final Map<Annotation, Set<AnnotatedElement>> annotationToField = new HashMap<>();
+        final Map<Class<?>, Set<AnnotatedElement>> annotationClassToAnnotatedElements = new HashMap<>();
         Stream.of(clazz.getDeclaredMethods(), clazz.getDeclaredFields(), clazz.getClasses(), new AnnotatedElement[] {clazz})
                 .flatMap(Arrays::stream)
                 .forEach(annotatedElement ->
                     Arrays.stream(annotatedElement.getDeclaredAnnotations()).forEach(annotation -> {
-                        if (annotations.contains(annotation.annotationType())) {
-                            if (annotationToField.containsKey(annotation)) {
-                                annotationToField.get(annotation).add(annotatedElement);
+                        if (annotations.contains(annotation.getClass())) {
+                            if (annotationClassToAnnotatedElements.containsKey(annotation.getClass())) {
+                                annotationClassToAnnotatedElements.get(annotation.getClass()).add(annotatedElement);
                             } else {
-                                annotationToField.put(annotation, new HashSet<>(Set.of(annotatedElement)));
+                                annotationClassToAnnotatedElements.put(annotation.getClass(), new HashSet<>(Set.of(annotatedElement)));
                             }
                         }
                     })
                 );
-        return annotationToField.isEmpty() ? Optional.empty() : Optional.of(new AnnotatedClass(clazz, annotationToField));
+        return annotationClassToAnnotatedElements.isEmpty() ? Optional.empty() : Optional.of(new AnnotatedClass(clazz, annotationClassToAnnotatedElements));
     }
 
 
@@ -99,8 +97,7 @@ public class AnnotationUtils {
     }
 
     public static void main(String... args) {
-        List<AnnotatedClass> l = AnnotationUtils.scanForAnnotations("com.application", Set.of(Init.class, Injectable.class, InjectableApplication.class, Property.class));
-        Map<String, String> m = new HashMap<>();
-        m.put(null, null);
+        MetadataProcessor metadataProcessor = new MetadataProcessor();
+        metadataProcessor.processMetadata("com.application");
     }
 }
