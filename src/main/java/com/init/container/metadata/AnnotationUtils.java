@@ -53,11 +53,12 @@ public class AnnotationUtils {
                 .flatMap(Arrays::stream)
                 .forEach(annotatedElement ->
                     Arrays.stream(annotatedElement.getDeclaredAnnotations()).forEach(annotation -> {
-                        if (annotations.contains(annotation.getClass())) {
-                            if (annotationClassToAnnotatedElements.containsKey(annotation.getClass())) {
-                                annotationClassToAnnotatedElements.get(annotation.getClass()).add(annotatedElement);
+                        Class<?> annotationClass = annotation.annotationType();
+                        if (annotations.contains(annotationClass)) {
+                            if (annotationClassToAnnotatedElements.containsKey(annotationClass)) {
+                                annotationClassToAnnotatedElements.get(annotationClass).add(annotatedElement);
                             } else {
-                                annotationClassToAnnotatedElements.put(annotation.getClass(), new HashSet<>(Set.of(annotatedElement)));
+                                annotationClassToAnnotatedElements.put(annotationClass, new HashSet<>(Set.of(annotatedElement)));
                             }
                         }
                     })

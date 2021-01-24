@@ -1,11 +1,8 @@
 package com.init.container.metadata;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /*
            {
@@ -35,9 +32,7 @@ public class AnnotatedClass {
 
     public AnnotatedClass(Class<?> sourceClass, Map<Class<?>, Set<AnnotatedElement>> annotationToAnnotatedElements) {
         this.sourceClass = sourceClass;
-        this.annotationClassToAnnotatedElements = annotationToAnnotatedElements.entrySet().stream()
-                .map(entry -> Map.entry(entry.getKey().getClass(), entry.getValue()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        this.annotationClassToAnnotatedElements = annotationToAnnotatedElements;
     }
 
     public Class<?> getSourceClass() {
@@ -47,6 +42,4 @@ public class AnnotatedClass {
     public Map<Class<?>, Set<AnnotatedElement>> getAnnotationClassToAnnotatedElements() {
         return annotationClassToAnnotatedElements;
     }
-
-
 }
