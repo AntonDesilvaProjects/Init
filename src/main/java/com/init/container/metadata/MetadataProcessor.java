@@ -3,9 +3,7 @@ package com.init.container.metadata;
 import com.init.annotation.*;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -120,6 +118,19 @@ public class MetadataProcessor {
                                     .collect(Collectors.toSet());
 
                             // next extract any additional dependencies based on no-arg ctor
+                            Constructor<?>[] ctors = annotatedClass.getSourceClass().getDeclaredConstructors();
+                            // we will allow only two types of ctors
+                            // a. no arg ctor - in this case, all dependencies will be initialized via field annotations
+                            // b. one arg-based ctor - there can only be ctor with params. If both no-arg and arg-based ctor
+                            // exists throw error. If more than one arg-based ctor exists throw error.
+                            if (ctors.length > 1) {
+                                throw new IllegalArgumentException("");
+                            }
+                            Parameter[] ctorParams = ctors[0].getParameters();
+                            // we need to check here for either scalar or object values
+                            // scalars will be treated as properties but must have accompaning @Property annotation to identify property path
+                            // object params will be assumed to @Init params(if not specified)
+                            //Arrays.stream(ctorParams).map(parameter -> parameter.is)
 
                         return fieldDependencies;
                 }));
