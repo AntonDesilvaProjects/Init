@@ -7,7 +7,7 @@ import com.init.annotation.Property;
 @Injectable
 public class APIStockDataService implements StockDataService {
 
-    @Property("timeout")
+    @Property("rest.timeout")
     private int timeout;
 
     @Injectable

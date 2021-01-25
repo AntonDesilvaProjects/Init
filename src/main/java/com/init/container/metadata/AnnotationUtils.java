@@ -16,6 +16,7 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,21 +50,32 @@ public class AnnotationUtils {
 
     public static Optional<AnnotatedClass> getAnnotationsForClass(Class<?> clazz, Set<Class<?>> annotations) {
         final Map<Class<?>, Set<AnnotatedElement>> annotationClassToAnnotatedElements = new HashMap<>();
-        Stream.of(clazz.getDeclaredMethods(), clazz.getDeclaredFields(), clazz.getClasses(), new AnnotatedElement[] {clazz})
+        // these breakdown maps which will be added to the AnnotatedClass for convenience
+        final Map<Class<?>, Set<AnnotatedElement>> annotationClassToClass = new HashMap<>();
+        final Map<Class<?>, Set<AnnotatedElement>> annotationClassToMethod = new HashMap<>();
+        final Map<Class<?>, Set<AnnotatedElement>> annotationClassToField = new HashMap<>();
+
+        final Function<Class<?>, Set<AnnotatedElement>> newHashSetFn = key -> new HashSet<>();
+
+        Stream.of(clazz.getDeclaredMethods(), clazz.getDeclaredFields(), clazz.getClasses(), new AnnotatedElement[] { clazz })
                 .flatMap(Arrays::stream)
                 .forEach(annotatedElement ->
                     Arrays.stream(annotatedElement.getDeclaredAnnotations()).forEach(annotation -> {
                         Class<?> annotationClass = annotation.annotationType();
-                        if (annotations.contains(annotationClass)) {
-                            if (annotationClassToAnnotatedElements.containsKey(annotationClass)) {
-                                annotationClassToAnnotatedElements.get(annotationClass).add(annotatedElement);
-                            } else {
-                                annotationClassToAnnotatedElements.put(annotationClass, new HashSet<>(Set.of(annotatedElement)));
-                            }
+                        Map<Class<?>, Set<AnnotatedElement>> elementMap = new HashMap<>();
+                        if (annotatedElement instanceof Field) {
+                            elementMap = annotationClassToField;
+                        } else if (annotatedElement instanceof Method) {
+                            elementMap = annotationClassToMethod;
+                        } else if (annotatedElement instanceof Class) {
+                            elementMap = annotationClassToClass;
                         }
+                        annotationClassToAnnotatedElements.computeIfAbsent(annotationClass, newHashSetFn).add(annotatedElement);
+                        elementMap.computeIfAbsent(annotationClass, newHashSetFn).add(annotatedElement);
                     })
                 );
-        return annotationClassToAnnotatedElements.isEmpty() ? Optional.empty() : Optional.of(new AnnotatedClass(clazz, annotationClassToAnnotatedElements));
+        return annotationClassToAnnotatedElements.isEmpty() ? Optional.empty() : Optional.of(new AnnotatedClass(
+                clazz, annotationClassToAnnotatedElements, annotationClassToField, annotationClassToMethod, annotationClassToClass));
     }
 
 
@@ -100,5 +112,10 @@ public class AnnotationUtils {
     public static void main(String... args) {
         MetadataProcessor metadataProcessor = new MetadataProcessor();
         metadataProcessor.processMetadata("com.application");
+
+//        Map<String, Set<String>> map = new HashMap<>();
+//        map.put("a", new HashSet<>(Set.of("a", "b")));
+//        map.computeIfAbsent("b", key -> new HashSet<>()).add("c");
+//        System.out.println(map);
     }
 }

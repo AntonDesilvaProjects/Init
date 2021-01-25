@@ -4,13 +4,12 @@ import com.init.annotation.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MetadataProcessor {
     private static final Set<Class<?>> FRAMEWORK_ANNOTATIONS = Set.of(
@@ -78,34 +77,55 @@ public class MetadataProcessor {
      *
      * */
     private Map<AnnotatedClass, Set<AnnotatedClass>> buildClassDependencyGraph(final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap) {
-        // gather all root level annotated class definition
+        // gather all root level annotated class definitions
         Map<Class<?>, List<AnnotatedClass>> rootLevelClassDefinitions = classToAnnotatedMetaDataMap.values().stream()
-                .collect(Collectors.groupingBy(annotatedClass -> {
-                            // for each annotated class, find the class level annotations
-                            Class<?> rootLevelClassAnnotation = Annotation.class;
-                            for (Class<?> classDefinitionAnnotation: CLASS_DEFINITION_ANNOTATIONS) {
-                                if (annotatedClass.getAnnotationClassToAnnotatedElements().containsKey(classDefinitionAnnotation)) {
-                                    Set<AnnotatedElement> annotatedElements = annotatedClass.getAnnotationClassToAnnotatedElements().get(classDefinitionAnnotation);
-                                    if (annotatedElements.stream().anyMatch(annotatedElement -> annotatedElement instanceof Type)) {
-                                        return classDefinitionAnnotation;
-                                    }
-                                }
-                            }
-
-
-                            return rootLevelClassAnnotation;
-                        })
+                .collect(Collectors.groupingBy(annotatedClass -> CLASS_DEFINITION_ANNOTATIONS.stream()
+                                .filter(classDefAnnotation -> annotatedClass.getAnnotationClassToClassElements().containsKey(classDefAnnotation))
+                                .findFirst()
+                                .orElse(Annotation.class))
                 );
 
-        // for any beans defined as methods, generate 'synthetic' annotated class definition
-        Optional.ofNullable(rootLevelClassDefinitions.get(Configuration.class)).orElse(List.of()).stream()
-                .filter(configurationClass -> {
-                    //
-                    return true;
-                })
-                .map(configurationClass -> {
-            return new AnnotatedClass(null, null);
-        }).collect(Collectors.toSet());
+        Map<Class<?>, Set<Dependency>> dependencyGraph = rootLevelClassDefinitions.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toMap(AnnotatedClass::getSourceClass,
+                        annotatedClass -> {
+                            // extract dependencies for the class
+                            // from the class's field, extract all dependency based annotation usages
+                            Set<AnnotatedElement> fieldsToBeInitialized = Stream.of(Init.class, Property.class)
+                                    .map(fieldAnnotation -> annotatedClass.getAnnotationClassToFieldElements().get(fieldAnnotation))
+                                    .filter(Objects::nonNull)
+                                    .flatMap(Collection::stream)
+                                    .collect(Collectors.toSet());
+                            Set<Dependency> fieldDependencies = fieldsToBeInitialized.stream()
+                                    .map(annotatedElement -> (Field) annotatedElement)
+                                    .map(field -> {
+                                        Set<Class<?>> fieldAnnotations = Arrays.stream(field.getDeclaredAnnotations()).map(Annotation::annotationType).collect(Collectors.toSet());
+                                        Dependency.Builder builder = Dependency.Builder.aDependency();
+                                        if (fieldAnnotations.contains(Init.class)) {
+                                            final Class<?> dependencyClazz = field.getType();
+                                            Init initAnnotation = field.getAnnotation(Init.class);
+                                            if (dependencyClazz.isInterface()) {
+                                                builder.withType(Dependency.Type.IMPLEMENTATION);
+                                                builder.withImplementationName("".equals(initAnnotation.value()) ? null : initAnnotation.value());
+                                            } else {
+                                                builder.withType(Dependency.Type.INSTANCE);
+                                            }
+                                        } else if (fieldAnnotations.contains(Property.class)) {
+                                            builder.withType(Dependency.Type.PROPERTY);
+                                        } else {
+                                            throw new IllegalArgumentException("Invalid annotation on class field");
+                                        }
+                                        return builder.build();
+                                    })
+                                    .collect(Collectors.toSet());
+
+                            // next extract any additional dependencies based on no-arg ctor
+
+                        return fieldDependencies;
+                }));
+
+        // for any beans defined as methods, combine the dependencies of the encompassing configuration
+        // class along with the parameters for the method
 
         return null;
     }

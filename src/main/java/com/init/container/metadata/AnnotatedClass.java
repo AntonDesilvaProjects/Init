@@ -29,10 +29,16 @@ import java.util.Set;
 public class AnnotatedClass {
     private final Class<?> sourceClass;
     private final Map<Class<?>, Set<AnnotatedElement>> annotationClassToAnnotatedElements;
+    private final Map<Class<?>, Set<AnnotatedElement>> annotationClassToFieldElements;
+    private final Map<Class<?>, Set<AnnotatedElement>> annotationClassToMethodElements;
+    private final Map<Class<?>, Set<AnnotatedElement>> annotationClassToClassElements;
 
-    public AnnotatedClass(Class<?> sourceClass, Map<Class<?>, Set<AnnotatedElement>> annotationToAnnotatedElements) {
+    public AnnotatedClass(Class<?> sourceClass, Map<Class<?>, Set<AnnotatedElement>> annotationClassToAnnotatedElements, Map<Class<?>, Set<AnnotatedElement>> annotationClassToFieldElements, Map<Class<?>, Set<AnnotatedElement>> annotationClassToMethodElements, Map<Class<?>, Set<AnnotatedElement>> annotationClassToClassElements) {
         this.sourceClass = sourceClass;
-        this.annotationClassToAnnotatedElements = annotationToAnnotatedElements;
+        this.annotationClassToAnnotatedElements = annotationClassToAnnotatedElements;
+        this.annotationClassToFieldElements = annotationClassToFieldElements;
+        this.annotationClassToMethodElements = annotationClassToMethodElements;
+        this.annotationClassToClassElements = annotationClassToClassElements;
     }
 
     public Class<?> getSourceClass() {
@@ -41,5 +47,17 @@ public class AnnotatedClass {
 
     public Map<Class<?>, Set<AnnotatedElement>> getAnnotationClassToAnnotatedElements() {
         return annotationClassToAnnotatedElements;
+    }
+
+    public Map<Class<?>, Set<AnnotatedElement>> getAnnotationClassToFieldElements() {
+        return annotationClassToFieldElements;
+    }
+
+    public Map<Class<?>, Set<AnnotatedElement>> getAnnotationClassToMethodElements() {
+        return annotationClassToMethodElements;
+    }
+
+    public Map<Class<?>, Set<AnnotatedElement>> getAnnotationClassToClassElements() {
+        return annotationClassToClassElements;
     }
 }
