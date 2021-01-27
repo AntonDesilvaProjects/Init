@@ -37,7 +37,7 @@ public class MetadataProcessor {
 
 
         // scan first for configuration files and build instances for those injectable methods
-            // treat each injectable method as a constructor - any parameter to the method needs to be created first
+        // treat each injectable method as a constructor - any parameter to the method needs to be created first
         // then build instances for injectable classes
 
         return null;
@@ -74,70 +74,109 @@ public class MetadataProcessor {
                                     .orElse((Class) Annotation.class) // return default Annotation class; this will be ignored
      *
      * */
-    private Map<AnnotatedClass, Set<AnnotatedClass>> buildClassDependencyGraph(final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap) {
+    private Map<Class<?>, Set<Dependency>> buildClassDependencyGraph(final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap) {
         // gather all root level annotated class definitions
         Map<Class<?>, List<AnnotatedClass>> rootLevelClassDefinitions = classToAnnotatedMetaDataMap.values().stream()
                 .collect(Collectors.groupingBy(annotatedClass -> CLASS_DEFINITION_ANNOTATIONS.stream()
-                                .filter(classDefAnnotation -> annotatedClass.getAnnotationClassToClassElements().containsKey(classDefAnnotation))
-                                .findFirst()
-                                .orElse(Annotation.class))
+                        .filter(classDefAnnotation -> annotatedClass.getAnnotationClassToClassElements().containsKey(classDefAnnotation))
+                        .findFirst()
+                        .orElse(Annotation.class))
                 );
 
         Map<Class<?>, Set<Dependency>> dependencyGraph = rootLevelClassDefinitions.values().stream()
                 .flatMap(Collection::stream)
-                .collect(Collectors.toMap(AnnotatedClass::getSourceClass,
-                        annotatedClass -> {
-                            // extract dependencies for the class
-                            // from the class's field, extract all dependency based annotation usages
-                            Set<AnnotatedElement> fieldsToBeInitialized = Stream.of(Init.class, Property.class)
-                                    .map(fieldAnnotation -> annotatedClass.getAnnotationClassToFieldElements().get(fieldAnnotation))
-                                    .filter(Objects::nonNull)
-                                    .flatMap(Collection::stream)
-                                    .collect(Collectors.toSet());
-                            Set<Dependency> fieldDependencies = fieldsToBeInitialized.stream()
-                                    .map(annotatedElement -> (Field) annotatedElement)
-                                    .map(field -> {
-                                        Set<Class<?>> fieldAnnotations = Arrays.stream(field.getDeclaredAnnotations()).map(Annotation::annotationType).collect(Collectors.toSet());
-                                        Dependency.Builder builder = Dependency.Builder.aDependency();
-                                        if (fieldAnnotations.contains(Init.class)) {
-                                            final Class<?> dependencyClazz = field.getType();
-                                            Init initAnnotation = field.getAnnotation(Init.class);
-                                            if (dependencyClazz.isInterface()) {
-                                                builder.withType(Dependency.Type.IMPLEMENTATION);
-                                                builder.withImplementationName("".equals(initAnnotation.value()) ? null : initAnnotation.value());
-                                            } else {
-                                                builder.withType(Dependency.Type.INSTANCE);
-                                            }
-                                        } else if (fieldAnnotations.contains(Property.class)) {
-                                            builder.withType(Dependency.Type.PROPERTY);
-                                        } else {
-                                            throw new IllegalArgumentException("Invalid annotation on class field");
-                                        }
-                                        return builder.build();
-                                    })
-                                    .collect(Collectors.toSet());
-
-                            // next extract any additional dependencies based on no-arg ctor
-                            Constructor<?>[] ctors = annotatedClass.getSourceClass().getDeclaredConstructors();
-                            // we will allow only two types of ctors
-                            // a. no arg ctor - in this case, all dependencies will be initialized via field annotations
-                            // b. one arg-based ctor - there can only be ctor with params. If both no-arg and arg-based ctor
-                            // exists throw error. If more than one arg-based ctor exists throw error.
-                            if (ctors.length > 1) {
-                                throw new IllegalArgumentException("");
-                            }
-                            Parameter[] ctorParams = ctors[0].getParameters();
-                            // we need to check here for either scalar or object values
-                            // scalars will be treated as properties but must have accompaning @Property annotation to identify property path
-                            // object params will be assumed to @Init params(if not specified)
-                            //Arrays.stream(ctorParams).map(parameter -> parameter.is)
-
-                        return fieldDependencies;
-                }));
+                .collect(Collectors.toMap(AnnotatedClass::getSourceClass, this::extractDependenciesForClass));
 
         // for any beans defined as methods, combine the dependencies of the encompassing configuration
         // class along with the parameters for the method
-
-        return null;
+        return dependencyGraph;
     }
+
+    private Set<Dependency> extractDependenciesForClass(AnnotatedClass annotatedClass) {
+        // extract dependencies for the class
+        // from the class's field, extract all dependency based annotation usages
+        final Set<AnnotatedElement> fieldsToBeInitialized = Stream.of(Init.class, Property.class)
+                .map(fieldAnnotation -> annotatedClass.getAnnotationClassToFieldElements().get(fieldAnnotation))
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
+
+        final Set<Dependency> fieldDependencies = fieldsToBeInitialized.stream()
+                .map(annotatedElement -> (Field) annotatedElement)
+                .map(this::getDependencyForClassField)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toSet());
+
+        // next extract any additional dependencies based on no-arg ctor
+        final Constructor<?>[] constructors = annotatedClass.getSourceClass().getDeclaredConstructors();
+        // we will allow only two types of ctors
+        // a. no arg ctor - in this case, all dependencies will be initialized via field annotations
+        // b. one arg-based ctor - there can only be ctor with params. If both no-arg and arg-based ctor
+        // exists throw error. If more than one arg-based ctor exists throw error.
+        if (constructors.length > 1) {
+            throw new IllegalArgumentException("");
+        }
+        Parameter[] ctorParams = constructors[0].getParameters();
+
+        // we need to check here for either scalar or object values
+        // scalars will be treated as properties but must have accompanying @Property annotation to identify property path
+        // object params will be assumed to @Init params(if not specified)
+        final Set<Dependency> constructorParamDependencies = Arrays.stream(ctorParams).map(this::getDependencyForConstructorParams).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toSet());
+
+        return Stream.of(fieldDependencies, constructorParamDependencies).flatMap(Collection::stream).collect(Collectors.toSet());
+    }
+
+    private Optional<Dependency> getDependencyForClassField(AnnotatedElement annotatedElement) {
+        final Set<Class<?>> fieldAnnotations = Arrays.stream(annotatedElement.getDeclaredAnnotations()).map(Annotation::annotationType).collect(Collectors.toSet());
+        final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency().withClass(annotatedElement.getClass());
+        if (fieldAnnotations.contains(Init.class)) {
+            final Class<?> dependencyClazz = dependencyBuilder.getClass();
+            Init initAnnotation = annotatedElement.getAnnotation(Init.class);
+            if (dependencyClazz.isInterface()) {
+                dependencyBuilder.withType(Dependency.Type.IMPLEMENTATION);
+            } else {
+                dependencyBuilder.withType(Dependency.Type.INSTANCE);
+            }
+            dependencyBuilder.withImplementationName("".equals(initAnnotation.value()) ? null : initAnnotation.value());
+        } else if (fieldAnnotations.contains(Property.class)) {
+            dependencyBuilder.withType(Dependency.Type.PROPERTY);
+        } else {
+            return Optional.empty(); // an unknown annotation - ignore
+        }
+        return Optional.of(dependencyBuilder.build());
+    }
+
+    private Optional<Dependency> getDependencyForConstructorParams(Parameter parameter) {
+        final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency();
+        if (isPrimitiveOrPrimitiveWrapperOrString(parameter.getType())) {
+            final Property property = Optional.ofNullable(parameter.getAnnotation(Property.class))
+                    .orElseThrow(() -> new IllegalArgumentException("Need to specify property!"));
+            dependencyBuilder.withType(Dependency.Type.PROPERTY);
+            dependencyBuilder.withPropertyResolverString(property.value());
+        } else {
+            final Class<?> dependencyClazz = dependencyBuilder.getClass();
+            // if annotation is present, check for instance name specifier
+            // unlike with fields, we don't require the @Init annotation on constructor
+            // parameters
+            final Init initAnnotation = parameter.getAnnotation(Init.class);
+            if (initAnnotation != null) {
+                dependencyBuilder.withImplementationName("".equals(initAnnotation.value()) ? null : initAnnotation.value());
+            }
+            if (dependencyClazz.isInterface()) {
+                dependencyBuilder.withType(Dependency.Type.IMPLEMENTATION);
+            } else {
+                dependencyBuilder.withType(Dependency.Type.INSTANCE);
+            }
+        }
+        return Optional.of(dependencyBuilder.build());
+    }
+
+    private static boolean isPrimitiveOrPrimitiveWrapperOrString(Class<?> type) {
+        return (type.isPrimitive() && type != void.class) ||
+                type == Double.class || type == Float.class || type == Long.class ||
+                type == Integer.class || type == Short.class || type == Character.class ||
+                type == Byte.class || type == Boolean.class || type == String.class;
+    }
+
 }

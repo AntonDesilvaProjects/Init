@@ -112,10 +112,5 @@ public class AnnotationUtils {
     public static void main(String... args) {
         MetadataProcessor metadataProcessor = new MetadataProcessor();
         metadataProcessor.processMetadata("com.application");
-
-//        Map<String, Set<String>> map = new HashMap<>();
-//        map.put("a", new HashSet<>(Set.of("a", "b")));
-//        map.computeIfAbsent("b", key -> new HashSet<>()).add("c");
-//        System.out.println(map);
     }
 }

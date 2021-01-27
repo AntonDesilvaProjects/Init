@@ -9,11 +9,13 @@ public class Dependency {
     private Type type;
     private Class<?> clazz;
     private String implementationName; // name of the specific implementation of interface
+    private String propertyResolverString;
 
     public static final class Builder {
         private Type type;
         private Class<?> clazz;
         private String implementationName; // name of the specific implementation of interface
+        private String propertyResolverString;
 
         private Builder() {
         }
@@ -27,7 +29,7 @@ public class Dependency {
             return this;
         }
 
-        public Builder withClazz(Class<?> clazz) {
+        public Builder withClass(Class<?> clazz) {
             this.clazz = clazz;
             return this;
         }
@@ -37,11 +39,17 @@ public class Dependency {
             return this;
         }
 
+        public Builder withPropertyResolverString(String propertyResolver) {
+            this.propertyResolverString = propertyResolver;
+            return this;
+        }
+
         public Dependency build() {
             Dependency dependency = new Dependency();
             dependency.implementationName = this.implementationName;
             dependency.type = this.type;
             dependency.clazz = this.clazz;
+            dependency.propertyResolverString = propertyResolverString;
             return dependency;
         }
     }
