@@ -1,5 +1,7 @@
 package com.init.container.metadata;
 
+import java.util.Objects;
+
 public class Dependency {
     enum Type {
         PROPERTY, // the receiver is dependent on a static property
@@ -52,5 +54,21 @@ public class Dependency {
             dependency.propertyResolverString = propertyResolverString;
             return dependency;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Dependency)) return false;
+        Dependency that = (Dependency) o;
+        return type == that.type &&
+                Objects.equals(clazz, that.clazz) &&
+                Objects.equals(implementationName, that.implementationName) &&
+                Objects.equals(propertyResolverString, that.propertyResolverString);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, clazz, implementationName, propertyResolverString);
     }
 }

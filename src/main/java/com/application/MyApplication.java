@@ -4,9 +4,7 @@ import com.application.service.StockDataService;
 import com.application.service.impl.APIStockDataService;
 import com.init.annotation.Init;
 import com.init.annotation.InjectableApplication;
-import com.init.container.Application;
 import com.init.container.ApplicationRunner;
-import com.init.container.metadata.MetadataProcessor;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;

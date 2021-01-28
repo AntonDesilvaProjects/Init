@@ -117,30 +117,27 @@ public class MetadataProcessor {
         if (constructors.length > 1) {
             throw new IllegalArgumentException("");
         }
-        Parameter[] ctorParams = constructors[0].getParameters();
-
         // we need to check here for either scalar or object values
         // scalars will be treated as properties but must have accompanying @Property annotation to identify property path
         // object params will be assumed to @Init params(if not specified)
-        final Set<Dependency> constructorParamDependencies = Arrays.stream(ctorParams).map(this::getDependencyForConstructorParams).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toSet());
+        final Set<Dependency> constructorParamDependencies = Arrays.stream(constructors[0].getParameters()).map(this::getDependencyForConstructorParams).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toSet());
 
         return Stream.of(fieldDependencies, constructorParamDependencies).flatMap(Collection::stream).collect(Collectors.toSet());
     }
 
-    private Optional<Dependency> getDependencyForClassField(AnnotatedElement annotatedElement) {
-        final Set<Class<?>> fieldAnnotations = Arrays.stream(annotatedElement.getDeclaredAnnotations()).map(Annotation::annotationType).collect(Collectors.toSet());
-        final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency().withClass(annotatedElement.getClass());
-        if (fieldAnnotations.contains(Init.class)) {
-            final Class<?> dependencyClazz = dependencyBuilder.getClass();
-            Init initAnnotation = annotatedElement.getAnnotation(Init.class);
-            if (dependencyClazz.isInterface()) {
+    private Optional<Dependency> getDependencyForClassField(Field field) {
+        final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency().withClass(field.getType());
+        if (field.isAnnotationPresent(Init.class)) {
+            Init initAnnotation = field.getAnnotation(Init.class);
+            if (field.getType().isInterface()) {
                 dependencyBuilder.withType(Dependency.Type.IMPLEMENTATION);
             } else {
                 dependencyBuilder.withType(Dependency.Type.INSTANCE);
             }
             dependencyBuilder.withImplementationName("".equals(initAnnotation.value()) ? null : initAnnotation.value());
-        } else if (fieldAnnotations.contains(Property.class)) {
+        } else if (field.isAnnotationPresent(Property.class)) {
             dependencyBuilder.withType(Dependency.Type.PROPERTY);
+            dependencyBuilder.withPropertyResolverString(field.getDeclaredAnnotation(Property.class).value());
         } else {
             return Optional.empty(); // an unknown annotation - ignore
         }
@@ -148,14 +145,14 @@ public class MetadataProcessor {
     }
 
     private Optional<Dependency> getDependencyForConstructorParams(Parameter parameter) {
-        final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency();
-        if (isPrimitiveOrPrimitiveWrapperOrString(parameter.getType())) {
+        final Class<?> paramType = parameter.getType();
+        final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency().withClass(paramType);
+        if (isPrimitiveOrPrimitiveWrapperOrString(paramType)) {
             final Property property = Optional.ofNullable(parameter.getAnnotation(Property.class))
                     .orElseThrow(() -> new IllegalArgumentException("Need to specify property!"));
             dependencyBuilder.withType(Dependency.Type.PROPERTY);
             dependencyBuilder.withPropertyResolverString(property.value());
         } else {
-            final Class<?> dependencyClazz = dependencyBuilder.getClass();
             // if annotation is present, check for instance name specifier
             // unlike with fields, we don't require the @Init annotation on constructor
             // parameters
@@ -163,7 +160,7 @@ public class MetadataProcessor {
             if (initAnnotation != null) {
                 dependencyBuilder.withImplementationName("".equals(initAnnotation.value()) ? null : initAnnotation.value());
             }
-            if (dependencyClazz.isInterface()) {
+            if (paramType.isInterface()) {
                 dependencyBuilder.withType(Dependency.Type.IMPLEMENTATION);
             } else {
                 dependencyBuilder.withType(Dependency.Type.INSTANCE);
@@ -178,5 +175,4 @@ public class MetadataProcessor {
                 type == Integer.class || type == Short.class || type == Character.class ||
                 type == Byte.class || type == Boolean.class || type == String.class;
     }
-
 }
