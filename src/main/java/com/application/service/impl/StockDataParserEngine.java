@@ -10,7 +10,7 @@ public class StockDataParserEngine {
     @Init
     private StockDataService stockDataService;
 
-    public StockDataParserEngine(@Property int x, @Init StockDataService stockDataService) {
+    public StockDataParserEngine(@Property("${server.port}") int x, @Init StockDataService stockDataService) {
 
     }
 

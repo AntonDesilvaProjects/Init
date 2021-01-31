@@ -1,0 +1,26 @@
+
+]	java:S125V"<This block of commented-out lines of code should be removed.(ĞË÷øÿÿÿÿ8ÅÃæó.
+c
+java:S1854f"FRemove this useless assignment to local variable "declaredAnnotaions".(½ä¬š8ÅÃæó.
+M
+java:S1172R"+Remove this unused method parameter "args".(ÃÆ‰®şÿÿÿÿ8ÅÃæó.
+X
+java:S1854c";Remove this useless assignment to local variable "methods".(õ´ªÆ8ÅÃæó.
+U	java:S106m"9Replace this use of System.out or System.err by a logger.(Ñ”¸8ÅÃæó.
+M
+java:S1481d"+Remove this unused "fields" local variable.(£±Øúÿÿÿÿ8ÅÃæó.
+X	java:S125h"<This block of commented-out lines of code should be removed.(ÂÛñÏ8ÅÃæó.
+N
+java:S11723"2Remove this unused method parameter "annotations".(Üæ·s8ÅÃæó.
+S
+java:S1481e"1Remove this unused "clazzMethods" local variable.(‹£ñØûÿÿÿÿ8ÅÃæó.
+}
+java:S3878<"[Disambiguate this call by either casting as "AnnotatedElement[]" or "AnnotatedElement[][]".(÷…’ôÿÿÿÿÿ8ÅÃæó.
+I
+java:S1481c",Remove this unused "methods" local variable.(õ´ªÆ8ÅÃæó.
+b
+java:S1854e"@Remove this useless assignment to local variable "clazzMethods".(‹£ñØûÿÿÿÿ8ÅÃæó.
+\
+java:S1854d":Remove this useless assignment to local variable "fields".(£±Øúÿÿÿÿ8ÅÃæó.
+T
+java:S1481f"7Remove this unused "declaredAnnotaions" local variable.(½ä¬š8ÅÃæó.

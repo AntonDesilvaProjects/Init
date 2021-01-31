@@ -76,24 +76,51 @@ public class MetadataProcessor {
      * */
     private Map<Class<?>, Set<Dependency>> buildClassDependencyGraph(final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap) {
         // gather all root level annotated class definitions
-        Map<Class<?>, List<AnnotatedClass>> rootLevelClassDefinitions = classToAnnotatedMetaDataMap.values().stream()
+        final Map<Class<?>, List<AnnotatedClass>> rootLevelClassDefinitions = classToAnnotatedMetaDataMap.values().stream()
                 .collect(Collectors.groupingBy(annotatedClass -> CLASS_DEFINITION_ANNOTATIONS.stream()
                         .filter(classDefAnnotation -> annotatedClass.getAnnotationClassToClassElements().containsKey(classDefAnnotation))
                         .findFirst()
                         .orElse(Annotation.class))
                 );
 
-        Map<Class<?>, Set<Dependency>> dependencyGraph = rootLevelClassDefinitions.values().stream()
+        final Map<Class<?>, Set<Dependency>> dependencyGraph = rootLevelClassDefinitions.values().stream()
                 .flatMap(Collection::stream)
                 .collect(Collectors.toMap(AnnotatedClass::getSourceClass, this::extractDependenciesForClass));
 
         // for any beans defined as methods, combine the dependencies of the encompassing configuration
         // class along with the parameters for the method
+        for (AnnotatedClass annotatedClass: Optional.ofNullable(rootLevelClassDefinitions.get(Configuration.class)).orElse(List.of())) {
+            for (AnnotatedElement annotatedElement: Optional.ofNullable(annotatedClass.getAnnotationClassToMethodElements().get(Injectable.class)).orElse(Set.of())) {
+                final Method method = (Method) annotatedElement;
+                // get return types to get the class
+                final Class<?> returnType = method.getReturnType();
+                if (returnType.isPrimitive()) {
+                    throw new IllegalArgumentException("Only object types are allowed for method based class definitions");
+                }
+                // get the parameters to get the dependencies
+                final Set<Dependency> dependencies = Arrays.stream(method.getParameters())
+                        .map(this::buildDependencyForParameter)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .collect(Collectors.toSet());
+
+                dependencies.add(Dependency.Builder.aDependency()
+                        .withClass(annotatedClass.getSourceClass())
+                        .withType(Dependency.Type.INSTANCE)
+                        .build());
+
+                if (dependencyGraph.containsKey(returnType)) {
+                    throw new IllegalArgumentException(String.format("Multiple instance definitions provided for '%s'", returnType));
+                }
+                dependencyGraph.put(returnType, dependencies);
+            }
+        }
+
         return dependencyGraph;
     }
 
     private Set<Dependency> extractDependenciesForClass(AnnotatedClass annotatedClass) {
-        // extract dependencies for the class
+        // extract dependencies for the myclass
         // from the class's field, extract all dependency based annotation usages
         final Set<AnnotatedElement> fieldsToBeInitialized = Stream.of(Init.class, Property.class)
                 .map(fieldAnnotation -> annotatedClass.getAnnotationClassToFieldElements().get(fieldAnnotation))
@@ -103,7 +130,7 @@ public class MetadataProcessor {
 
         final Set<Dependency> fieldDependencies = fieldsToBeInitialized.stream()
                 .map(annotatedElement -> (Field) annotatedElement)
-                .map(this::getDependencyForClassField)
+                .map(this::buildDependencyForClassField)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(Collectors.toSet());
@@ -120,12 +147,16 @@ public class MetadataProcessor {
         // we need to check here for either scalar or object values
         // scalars will be treated as properties but must have accompanying @Property annotation to identify property path
         // object params will be assumed to @Init params(if not specified)
-        final Set<Dependency> constructorParamDependencies = Arrays.stream(constructors[0].getParameters()).map(this::getDependencyForConstructorParams).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toSet());
+        final Set<Dependency> constructorParamDependencies = Arrays.stream(constructors[0].getParameters())
+                .map(this::buildDependencyForParameter)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toSet());
 
         return Stream.of(fieldDependencies, constructorParamDependencies).flatMap(Collection::stream).collect(Collectors.toSet());
     }
 
-    private Optional<Dependency> getDependencyForClassField(Field field) {
+    private Optional<Dependency> buildDependencyForClassField(Field field) {
         final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency().withClass(field.getType());
         if (field.isAnnotationPresent(Init.class)) {
             Init initAnnotation = field.getAnnotation(Init.class);
@@ -144,7 +175,7 @@ public class MetadataProcessor {
         return Optional.of(dependencyBuilder.build());
     }
 
-    private Optional<Dependency> getDependencyForConstructorParams(Parameter parameter) {
+    private Optional<Dependency> buildDependencyForParameter(Parameter parameter) {
         final Class<?> paramType = parameter.getType();
         final Dependency.Builder dependencyBuilder = Dependency.Builder.aDependency().withClass(paramType);
         if (isPrimitiveOrPrimitiveWrapperOrString(paramType)) {

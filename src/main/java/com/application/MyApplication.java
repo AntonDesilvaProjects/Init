@@ -14,7 +14,7 @@ import java.lang.reflect.Method;
 @InjectableApplication
 public class MyApplication implements ApplicationRunner {
 
-    @Init
+    @Init("someImpl")
     public StockDataService stockDataService;
 
     public static void main(String... args) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchFieldException {
