@@ -63,7 +63,7 @@ public class MetadataProcessor {
      *  class D => { class B}
      *
      *  For injectable instances provided by methods, the combination of the method parameters
-     *  and the enclosing classes dependencies as the dependencies for the returned instance.
+     *  and the enclosing class itself will be added as the dependencies for the returned instance.
      *
      * Collectors.groupingBy(annotatedClass -> annotatedClass.getAnnotationToAnnotatedElements()
                                     .keySet()
@@ -72,6 +72,7 @@ public class MetadataProcessor {
                                     .filter(CLASS_DEFINITION_ANNOTATIONS::contains)
                                     .findFirst()
                                     .orElse((Class) Annotation.class) // return default Annotation class; this will be ignored
+
      *
      * */
     private Map<Class<?>, Set<Dependency>> buildClassDependencyGraph(final Map<Class<?>, AnnotatedClass> classToAnnotatedMetaDataMap) {
@@ -206,4 +207,6 @@ public class MetadataProcessor {
                 type == Integer.class || type == Short.class || type == Character.class ||
                 type == Byte.class || type == Boolean.class || type == String.class;
     }
+
+
 }

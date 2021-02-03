@@ -1,0 +1,33 @@
+{											{
+	Class<?> class;				=====> 			TYPE: IMPLEMENTATION
+	String name;	                            Class<?> someInterface; //specific name
+}  											}
+
+
+// problem: only at runtime do we know what kind of instance is being returned;
+
+public PeopleService getProfesorService() {
+	return new ProfessorService();
+}
+
+public PeopleService getStudentService() {
+	return new StudentService();
+}
+
+
+[{ PeopleService.class, 'getProfessorService', Type: Interface}] => []
+
+
+
+<< Adjacency List implementation >>
+
+/*
+	This class can be both the dependency as well the dependent
+*/
+Node {
+	Class<?> class; //class itself
+	String name; //name of the class instance; if provided use; otherwise auto-generate
+	Type type; //PROPERTY, INSTANCE, IMPLEMENTATION
+}
+
+Map<Node, Set<Node>> injectableClassToDependencies = ....
